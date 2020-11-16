@@ -84,9 +84,11 @@ postApp.put("/:id", async (req, res) => {
 });
 
 postApp.delete("/:id", async (req, res) => {
-  await db.collection("posts").doc(req.params.id).delete();
-
-  res.status(200).send(true);
+  await db.collection("posts").doc(req.params.id).delete().then(doc =>
+    res.status(200).send(true)).catch(err =>{
+      res.status(500).send();
+      console.error(err);
+    });
 });
 
 exports.posts = functions.https.onRequest(postApp);
