@@ -36,7 +36,7 @@ postApp.get("/:id", async (req, res) => {
 
   const postId = snapshot.id;
   const postData = snapshot.data();
-
+  
   res.status(200).send(JSON.stringify({ id: postId, ...postData }));
 });
 
@@ -74,8 +74,10 @@ postApp.put("/:id", async (req, res) => {
     lastUpdateAt: new Date().toISOString(),
   };
   if (checkProperties(post)){
-  await db.collection("posts").doc(req.params.id).update(post).then((doc) => res.status(200).send(doc._path.segments[1]))
-  .catch((err) => console.error(err));
+  await db.collection("posts").doc(req.params.id).update(post).then((doc) => res.status(200).send(true))
+  .catch((err) => {
+    res.status(500).send();
+    console.error(err);});
   }else{
     res.status(400).send();
   }
