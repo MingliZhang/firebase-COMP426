@@ -38,78 +38,124 @@ postApp.get("/:id", async (req, res) => {
 
   const postId = snapshot.id;
   const postData = snapshot.data();
-
-  res.status(200).send(JSON.stringify({ id: postId, ...postData }));
+  if (postData === null || postData === undefined) {
+    res.status(400).send("The ID does not exist!");
+  } else {
+    res.status(200).send(JSON.stringify({ id: postId, ...postData }));
+  }
 });
 
 postApp.post("/", async (req, res) => {
   const data = req.body;
-  const post = {
-    body: data.body,
-    uid: data.uid,
-    userName: data.userName,
-    anonymous: data.anonymous,
-    comments: [],
-    likes: [],
-    createdAt: new Date().toISOString(),
-  };
-  if (checkProperties(post)) {
-    await db
-      .collection("posts")
-      .add(post)
-      .then((doc) => res.status(201).send(doc._path.segments[1]))
-      .catch((err) => {
-        res.status(500).send();
-        console.error(err);
-      });
+  if (
+    data.body === undefined ||
+    data.uid === undefined ||
+    data.anonymous === undefined ||
+    data.userName === undefined ||
+    data.postTo === undefined
+  ) {
+    res.status(400).send("One or more of the required field is not defined!!");
   } else {
-    res.status(400).send();
+    const post = {
+      body: data.body,
+      uid: data.uid,
+      userName: data.userName,
+      anonymous: data.anonymous,
+      postTo: data.postTo,
+      comments: [],
+      likes: [],
+      createdAt: new Date().toISOString(),
+    };
+    if (checkProperties(post)) {
+      await db
+        .collection("posts")
+        .add(post)
+        .then((doc) => res.status(201).send(doc._path.segments[1]))
+        .catch((err) => {
+          res.status(500).send("An unknown server error occured!");
+          console.error(err);
+        });
+    } else {
+      res
+        .status(400)
+        .send("One or more required fields have a value of null!!!");
+    }
   }
 });
 
 postApp.put("/:id", async (req, res) => {
-  const data = req.body;
-  const post = {
-    body: data.body,
-    uid: data.uid,
-    userName: data.userName,
-    anonymous: data.anonymous,
-    comments: data.comments,
-    likes: data.likes,
-    lastUpdateAt: new Date().toISOString(),
-  };
-  if (checkProperties(post)) {
-    await db
-      .collection("posts")
-      .doc(req.params.id)
-      .update(post)
-      .then((doc) => res.status(200).send(true))
-      .catch((err) => {
-        res.status(500).send();
-        console.error(err);
-      });
+  const snapshot = await db.collection("posts").doc(req.params.id).get();
+  const postData = snapshot.data();
+
+  if (postData === null || postData === undefined) {
+    res.status(400).send("The ID provided does not exists!");
   } else {
-    res.status(400).send();
+    const data = req.body;
+    if (
+      data.body === undefined ||
+      data.uid === undefined ||
+      data.userName === undefined ||
+      data.anonymous === undefined ||
+      data.comments === undefined ||
+      data.likes === undefined ||
+      data.postTo === undefined
+    ) {
+      res
+        .status(400)
+        .send("There is one or more required field that is not provided!!");
+    } else {
+      const post = {
+        body: data.body,
+        uid: data.uid,
+        userName: data.userName,
+        anonymous: data.anonymous,
+        comments: data.comments,
+        likes: data.likes,
+        postTo: data.postTo,
+        lastUpdateAt: new Date().toISOString(),
+      };
+      if (checkProperties(post)) {
+        await db
+          .collection("posts")
+          .doc(req.params.id)
+          .update(post)
+          .then((doc) => res.status(200).send(true))
+          .catch((err) => {
+            res.status(500).send("An unknown error occured!");
+            console.error(err);
+          });
+      } else {
+        res
+          .status(400)
+          .send("One or more of the required field have a value of null!!!");
+      }
+    }
   }
 });
 
 postApp.delete("/:id", async (req, res) => {
-  await db
-    .collection("posts")
-    .doc(req.params.id)
-    .delete()
-    .then((doc) => res.status(200).send(true))
-    .catch((err) => {
-      res.status(500).send();
-      console.error(err);
-    });
+  const snapshot = await db.collection("posts").doc(req.params.id).get();
+  const postData = snapshot.data();
+
+  if (postData === null || postData === undefined) {
+    res.status(400).send("The ID provided does not exists!");
+  } else {
+    await db
+      .collection("posts")
+      .doc(req.params.id)
+      .delete()
+      .then((doc) => res.status(200).send(doc))
+      .catch((err) => {
+        res.status(500).send("An unknown error occured!");
+        console.error(err);
+      });
+  }
 });
 
 exports.posts = functions.https.onRequest(postApp);
 
 // API for users database
 const userApp = express();
-
 userApp.use(cors({ origin: true }));
 
 userApp.get("/", async (req, res) => {
@@ -117,7 +163,7 @@ userApp.get("/", async (req, res) => {
     .collection("users")
     .orderBy("userName", "asc")
     .get();
-    
+
   let users = [];
   snapshot.forEach((doc) => {
     let id = doc.id;
@@ -134,69 +180,112 @@ userApp.get("/:id", async (req, res) => {
   const userId = snapshot.id;
   const userData = snapshot.data();
 
-  res.status(200).send(JSON.stringify({ id: userId, ...userData }));
+  if (userData === null || userData === undefined) {
+    res.status(400).send("The ID does not exist!");
+  } else {
+    res.status(200).send(JSON.stringify({ id: userId, ...userData }));
+  }
 });
 
 userApp.post("/", async (req, res) => {
   const data = req.body;
-  const user = {
-    userName: data.userName,
-    email: data.email,
-    password: data.password,
-    matchPoint: 0,
-    friends: [],
-    highestGameScore: 0,
-    createdAt: new Date().toISOString(),
-  };
-  if (checkProperties(user)) {
-    await db
-      .collection("users")
-      .add(user)
-      .then((doc) => res.status(201).send(doc._path.segments[1]))
-      .catch((err) => {
-        res.status(500).send();
-        console.error(err);
-      });
+  if (
+    data.userName === undefined ||
+    data.email === undefined ||
+    data.userName === undefined
+  ) {
+    res.status(400).send("One or more of the required field is not defined!!");
   } else {
-    res.status(400).send();
+    const user = {
+      userName: data.userName,
+      email: data.email,
+      password: data.password,
+      matchPoint: [0, 0, 0, 0, 0],
+      friends: [],
+      highestGameScore: 0,
+      createdAt: new Date().toISOString(),
+    };
+    if (checkProperties(user)) {
+      await db
+        .collection("users")
+        .add(user)
+        .then((doc) => res.status(201).send(doc._path.segments[1]))
+        .catch((err) => {
+          res.status(500).send("An unknown server error occured!");
+          console.error(err);
+        });
+    } else {
+      res
+        .status(400)
+        .send("One or more required fields have a value of null!!!");
+    }
   }
 });
 
 userApp.put("/:id", async (req, res) => {
-  const data = req.body;
-  const user = {
-    userName: data.userName,
-    email: data.email,
-    password: data.password,
-    matchPoint: data.matchPoint,
-    friends: data.friends,
-    highestGameScore: data.highestGameScore,
-  };
-  if (checkProperties(user)) {
-    await db
-      .collection("users")
-      .doc(req.params.id)
-      .update(user)
-      .then((doc) => res.status(200).send(true))
-      .catch((err) => {
-        res.status(500).send();
-        console.error(err);
-      });
+  const snapshot = await db.collection("users").doc(req.params.id).get();
+  const userData = snapshot.data();
+
+  if (userData === null || userData === undefined) {
+    res.status(400).send("The ID provided does not exists!");
   } else {
-    res.status(400).send();
+    const data = req.body;
+    if (
+      data.userName === undefined ||
+      data.email === undefined ||
+      data.password === undefined ||
+      data.matchPoint === undefined ||
+      data.friends === undefined ||
+      data.highestGameScore === undefined
+    ) {
+      res
+        .status(400)
+        .send("There is one or more required field that is not provided!!");
+    } else {
+      const user = {
+        userName: data.userName,
+        email: data.email,
+        password: data.password,
+        matchPoint: data.matchPoint,
+        friends: data.friends,
+        highestGameScore: data.highestGameScore,
+      };
+      if (checkProperties(user)) {
+        await db
+          .collection("users")
+          .doc(req.params.id)
+          .update(user)
+          .then((doc) => res.status(200).send(true))
+          .catch((err) => {
+            res.status(500).send("An unknown error occured!");
+            console.error(err);
+          });
+      } else {
+        res
+          .status(400)
+          .send("One or more of the required field have a value of null!!!");
+      }
+    }
   }
 });
 
 userApp.delete("/:id", async (req, res) => {
-  await db
-    .collection("user")
-    .doc(req.params.id)
-    .delete()
-    .then((doc) => res.status(200).send(true))
-    .catch((err) => {
-      res.status(500).send();
-      console.error(err);
-    });
+  const snapshot = await db.collection("users").doc(req.params.id).get();
+  const userData = snapshot.data();
+
+  if (userData === null || userData === undefined) {
+    res.status(400).send("The ID provided does not exists!");
+  } else {
+    await db
+      .collection("users")
+      .doc(req.params.id)
+      .delete()
+      .then((doc) => res.status(200).send(true))
+      .catch((err) => {
+        res.status(500).send("An unknown error occured!");
+        console.error(err);
+      });
+  }
 });
 
 exports.users = functions.https.onRequest(userApp);
