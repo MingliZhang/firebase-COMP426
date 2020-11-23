@@ -45,6 +45,22 @@ postApp.get("/:id", async (req, res) => {
   }
 });
 
+postApp.get("/postTo/:id", async (req, res) => {
+  const uid = req.params.id;
+  const snapshot = await db.collection("posts").get();
+
+  let posts = [];
+  snapshot.forEach((doc) => {
+    let id = doc.id;
+    let data = doc.data();
+    if (data.postTo === uid) {
+      posts.push({ id, ...data });
+    }
+  });
+
+  res.status(200).send(JSON.stringify(posts));
+});
+
 postApp.post("/", async (req, res) => {
   const data = req.body;
   if (
@@ -187,6 +203,29 @@ userApp.get("/:id", async (req, res) => {
   }
 });
 
+userApp.get("/email/:email", async (req, res) => {
+  const snapshot = await db.collection("users").get();
+
+  const email = req.params.email;
+
+  let users = [];
+  snapshot.forEach((doc) => {
+    let id = doc.id;
+    let data = doc.data();
+    users.push({ id, ...data });
+  });
+
+  let user = users.filter((account) => account.email === email);
+
+  if (user.length === 1) {
+    res.status(200).send(user[0]);
+  } else if (user.length !== 0) {
+    res.status(400).send(user);
+  } else {
+    res.status(400).send("The email provided has not yet been registered");
+  }
+});
+
 userApp.post("/", async (req, res) => {
   const data = req.body;
   if (
@@ -200,8 +239,8 @@ userApp.post("/", async (req, res) => {
       userName: data.userName,
       email: data.email,
       password: data.password,
-      matchPoint: [0, 0, 0, 0, 0],
-      friends: [],
+      matchPoint: [-100, -100, -100, -100, -100],
+      following: [],
       highestGameScore: 0,
       createdAt: new Date().toISOString(),
     };
@@ -235,7 +274,7 @@ userApp.put("/:id", async (req, res) => {
       data.email === undefined ||
       data.password === undefined ||
       data.matchPoint === undefined ||
-      data.friends === undefined ||
+      data.following === undefined ||
       data.highestGameScore === undefined
     ) {
       res
@@ -247,7 +286,7 @@ userApp.put("/:id", async (req, res) => {
         email: data.email,
         password: data.password,
         matchPoint: data.matchPoint,
-        friends: data.friends,
+        following: data.following,
         highestGameScore: data.highestGameScore,
       };
       if (checkProperties(user)) {
